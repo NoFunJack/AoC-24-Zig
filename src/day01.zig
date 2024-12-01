@@ -12,6 +12,7 @@ const data = @embedFile("data/day01.txt");
 
 pub fn main() void {
     std.debug.print("part1: {any}", .{part1(data)});
+    std.debug.print("part2: {any}", .{part2(data)});
 }
 
 // Useful stdlib functions
@@ -53,17 +54,8 @@ fn part1(strLists: []const u8) !u64 {
     defer listA.deinit();
     defer listB.deinit();
 
-    var it = std.mem.tokenizeAny(u8, strLists, "\n");
-    while (it.next()) |line| {
-        var itNum = std.mem.tokenizeAny(u8, line, "  ");
-        const numA = itNum.next().?;
-        const numB = itNum.next().?;
+    try readArrays(strLists, &listA, &listB);
 
-        //print("\n{s}: numA: {?s} numB: {?s}", .{ line, numA, numB });
-
-        try listA.append(try std.fmt.parseUnsigned(u64, numA, 10));
-        try listB.append(try std.fmt.parseUnsigned(u64, numB, 10));
-    }
     //print("\nList A: {any}", .{listA.items});
     //print("\nList B: {any}", .{listB.items});
 
@@ -84,14 +76,52 @@ fn part1(strLists: []const u8) !u64 {
     return sum;
 }
 
-test "example" {
-    const input =
-        \\3   4
-        \\4   3
-        \\2   5
-        \\1   3
-        \\3   9
-        \\3   3
-    ;
-    try std.testing.expectEqual(11, part1(input));
+fn part2(strList: []const u8) !u64 {
+    var listA = std.ArrayList(u64).init(gpa);
+    var listB = std.ArrayList(u64).init(gpa);
+    defer listA.deinit();
+    defer listB.deinit();
+
+    try readArrays(strList, &listA, &listB);
+
+    var sum: u64 = 0;
+    for (listA.items) |a| {
+        var count: u64 = 0;
+        for (listB.items) |b| {
+            if (a == b) {
+                count += 1;
+            }
+        }
+        sum += a * count;
+    }
+    return sum;
+}
+
+fn readArrays(strLists: []const u8, listA: *std.ArrayList(u64), listB: *std.ArrayList(u64)) !void {
+    var it = std.mem.tokenizeAny(u8, strLists, "\n");
+    while (it.next()) |line| {
+        var itNum = std.mem.tokenizeAny(u8, line, "  ");
+        const numA = itNum.next().?;
+        const numB = itNum.next().?;
+
+        //print("\n{s}: numA: {?s} numB: {?s}", .{ line, numA, numB });
+
+        try listA.append(try std.fmt.parseUnsigned(u64, numA, 10));
+        try listB.append(try std.fmt.parseUnsigned(u64, numB, 10));
+    }
+}
+
+const testInput =
+    \\3   4
+    \\4   3
+    \\2   5
+    \\1   3
+    \\3   9
+    \\3   3
+;
+test "part1 example" {
+    try std.testing.expectEqual(11, part1(testInput));
+}
+test "part2 example" {
+    try std.testing.expectEqual(31, part2(testInput));
 }
