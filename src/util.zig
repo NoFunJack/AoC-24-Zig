@@ -37,3 +37,7 @@ const assert = std.debug.assert;
 const sort = std.sort.block;
 const asc = std.sort.asc;
 const desc = std.sort.desc;
+
+pub fn charIsNum(c: u8) bool {
+    return 48 <= c and c <= 57;
+}
