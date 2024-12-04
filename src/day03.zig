@@ -58,20 +58,40 @@ fn calc_input(input: []const u8) !u64 {
 
 const Caluclator = struct {
     sum: u64 = 0,
-    state: CalcState = CalcState.prefix,
+    state: CalcState = CalcState.init,
     i: usize = 0,
     first: NumBuffer = .{},
     second: NumBuffer = .{},
+    enabled: bool = true,
 
     const prefix = "mul(";
+    const do = "do";
+    const par = "()";
+    const nt = "n't()";
 
     pub fn read(self: *Caluclator, char: u8) void {
         switch (self.state) {
-            .prefix => {
+            .init => {
+                if (prefix[self.i] == char) {
+                    print("p", .{});
+                    self.i += 1;
+                    self.state = CalcState.prefix_mul;
+                    return;
+                } else if (do[self.i] == char) {
+                    print("d", .{});
+                    self.i += 1;
+                    self.state = CalcState.prefix_do;
+                    return;
+                } else {
+                    print("_", .{});
+                    self.reset(char);
+                    return;
+                }
+            },
+            .prefix_mul => {
                 if (prefix[self.i] == char) {
                     self.i += 1;
                     if (self.i == prefix.len) {
-                        // switch state
                         self.state = CalcState.first_num;
                     }
                     print("p", .{});
@@ -82,6 +102,67 @@ const Caluclator = struct {
                     return;
                 }
             },
+            .prefix_do => {
+                if (self.i == do.len) {
+                    self.i = 0;
+                    if (par[0] == char) {
+                        self.state = CalcState.prefix_do_par;
+                        self.i = 1;
+                        print("y", .{});
+                        return;
+                    }
+                    if (nt[0] == char) {
+                        self.state = CalcState.prefix_do_not;
+                        self.i = 1;
+                        print("n", .{});
+                        return;
+                    }
+                }
+                if (do[self.i] == char) {
+                    self.i += 1;
+                    print("d", .{});
+                    return;
+                } else {
+                    print("_", .{});
+                    self.reset(char);
+                    return;
+                }
+            },
+            .prefix_do_par => {
+                if (par[self.i] == char) {
+                    self.i += 1;
+                    if (self.i == par.len) {
+                        self.enabled = true;
+                        self.reset(char);
+                        print("Y", .{});
+                    } else {
+                        print("y", .{});
+                    }
+                    return;
+                } else {
+                    print("_", .{});
+                    self.reset(char);
+                    return;
+                }
+            },
+            .prefix_do_not => {
+                if (nt[self.i] == char) {
+                    self.i += 1;
+                    if (self.i == nt.len) {
+                        self.enabled = false;
+                        self.reset(char);
+                        print("N", .{});
+                    } else {
+                        print("n", .{});
+                    }
+                    return;
+                } else {
+                    print("_", .{});
+                    self.reset(char);
+                    return;
+                }
+            },
+
             .first_num => {
                 if (self.first.addChar(char)) {
                     print("1", .{});
@@ -123,7 +204,7 @@ const Caluclator = struct {
     }
 
     fn reset(self: *Caluclator, c: u8) void {
-        self.state = CalcState.prefix;
+        self.state = CalcState.init;
         self.i = 0;
         self.first = .{};
         self.second = .{};
@@ -131,14 +212,20 @@ const Caluclator = struct {
     }
 
     fn multi(self: *Caluclator) !void {
-        const a = self.first.val() * self.second.val();
-        print("[{d}]", .{a});
-        self.sum += a;
+        if (self.enabled) {
+            const a = self.first.val() * self.second.val();
+            //print("[{d}]", .{a});
+            self.sum += a;
+        }
     }
 };
 
 const CalcState = enum {
-    prefix,
+    init,
+    prefix_mul,
+    prefix_do,
+    prefix_do_par,
+    prefix_do_not,
     first_num,
     second_num,
 };
@@ -172,4 +259,8 @@ test "single multi" {
 test "part1 example" {
     const in = "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))";
     try std.testing.expectEqual(161, calc_input(in));
+}
+test "part2 example" {
+    const in = "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))";
+    try std.testing.expectEqual(48, calc_input(in));
 }
