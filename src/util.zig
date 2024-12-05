@@ -41,3 +41,7 @@ const desc = std.sort.desc;
 pub fn charIsNum(c: u8) bool {
     return 48 <= c and c <= 57;
 }
+
+pub fn readUnsign(str: []const u8) !u64 {
+    return try std.fmt.parseUnsigned(u64, str, 10);
+}
