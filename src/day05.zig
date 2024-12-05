@@ -11,7 +11,8 @@ const gpa = util.gpa;
 const data = @embedFile("data/day05.txt");
 
 pub fn main() !void {
-    print("part1: {any}", .{validate(data)});
+    print("part1: {any}", .{validate(data, false)});
+    print("\npart2: {any}", .{validate(data, true)});
 }
 
 // Useful stdlib functions
@@ -67,11 +68,13 @@ fn validate(input: []const u8, fix: bool) !u64 {
         }
 
         if (fix) {
-            fixList(list, rules);
-            print("\n{any} < fixed\n", .{list.items});
-            const a = list.items[list.items.len / 2];
-            print("ADD:{any}\n", .{a});
-            sum += a;
+            if (!isValid(list, rules)) {
+                fixList(list, rules);
+                print("\n{any} < fixed\n", .{list.items});
+                const a = list.items[list.items.len / 2];
+                print("ADD(fixed):{any}\n", .{a});
+                sum += a;
+            }
         } else {
             if (isValid(list, rules)) {
                 const a = list.items[list.items.len / 2];
@@ -110,7 +113,7 @@ fn isValid(input: List(u64), rules: List([2]u64)) bool {
     return true;
 }
 
-fn fixList(input: List(u64), rules: List([2]u64)) List(u64) {
+fn fixList(input: List(u64), rules: List([2]u64)) void {
     for (input.items, 0..) |num, in| {
         print("{d} ", .{num});
         for (rules.items) |r| {
@@ -119,6 +122,8 @@ fn fixList(input: List(u64), rules: List([2]u64)) List(u64) {
                     print("swap rule {d}|{d} [{d},{d}]\n", .{ r[0], r[1], in, in + j });
                     input.items[in] = r[0];
                     input.items[in + j] = r[1];
+                    fixList(input, rules);
+                    return;
                 }
             }
         }
