@@ -56,18 +56,8 @@ fn countSteps(map: []const u8) !u64 {
     var pos = indexOfAny(u8, map, "^").?;
     var dir = Dir.u;
 
-    var dirtyLoopDect: u64 = 0;
     loop: while (pos >= 0 and pos < log.touched.len and map[pos] != '\n') {
         //print("\npos: {d} prev: {any} next: {any}", .{ pos, log.touched[pos], dir });
-        if (dirtyLoopDect > 999999) {
-            //break;
-            //log.printMap(map);
-            //print("\n", .{});
-            //print("\x1B[2J\x1B[H", .{});
-        } else {
-            //print("{d}\n", .{dirtyLoopDect});
-            dirtyLoopDect += 1;
-        }
         try log.log(pos, dir);
         var next: usize = 0;
         switch (dir) {
@@ -98,7 +88,7 @@ fn countLoops(map: []const u8) !u64 {
         std.mem.copyForwards(u8, mapWithObst, map);
         mapWithObst[i] = '#';
 
-        print("\nADDED {d}\n", .{i});
+        //print("\nADDED {d}\n", .{i});
         //print("\nADDED\n {s}\n", .{mapWithObst});
         if (countSteps(mapWithObst)) |ignore| {
             _ = ignore;
