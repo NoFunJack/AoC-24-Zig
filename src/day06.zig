@@ -79,6 +79,8 @@ fn countSteps(map: []const u8) !u64 {
     }
     return log.count();
 }
+
+// Could be optimized ~10x by just blocking tiles in the inital path of the guard
 fn countLoops(map: []const u8) !u64 {
     var loops: u64 = 0;
     for (map, 0..) |start, i| {
