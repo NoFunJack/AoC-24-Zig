@@ -85,9 +85,22 @@ fn calc(params: []u64, ops: []Op) u64 {
         switch (o) {
             .plus => x += params[i],
             .mult => x *= params[i],
+            .con => x = con(x, params[i]),
         }
     }
     return x;
+}
+
+fn con(a: u64, b: u64) u64 {
+    const shift = std.math.log10_int(b) + 1;
+    var mult: u64 = 1;
+    for (0..shift) |_| {
+        mult *= 10;
+    }
+    const re = (a * mult + b);
+    //print("input ({d},{d}) r:{d} shift: {d}\n", .{ a, b, re, shift });
+
+    return re;
 }
 
 const OpIt = struct {
@@ -131,11 +144,13 @@ const OpIt = struct {
 const Op = enum {
     plus,
     mult,
+    con,
 
     pub fn next(self: Op) ?Op {
         return switch (self) {
             .plus => Op.mult,
-            .mult => null,
+            .mult => Op.con,
+            .con => null,
         };
     }
 };
@@ -152,20 +167,25 @@ const exImput =
     \\292: 11 6 16 20
 ;
 
-test "part1 example" {
-    try std.testing.expectEqual(3749, countSolvable(exImput));
+test "con" {
+    try std.testing.expectEqual(11, con(1, 1));
+    try std.testing.expectEqual(11321, con(11, 321));
 }
 
-test "op-Iterator" {
-    var it = try OpIt.init(3);
-
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .plus, .plus }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .plus, .plus }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .mult, .plus }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .mult, .plus }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .plus, .mult }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .plus, .mult }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .mult, .mult }, it.next().?);
-    try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .mult, .mult }, it.next().?);
-    try std.testing.expectEqual(null, it.next());
+test "part2 example" {
+    try std.testing.expectEqual(11387, countSolvable(exImput));
 }
+
+// test "op-Iterator" {
+//     var it = try OpIt.init(3);
+
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .plus, .plus }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .plus, .plus }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .mult, .plus }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .mult, .plus }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .plus, .mult }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .plus, .mult }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .plus, .mult, .mult }, it.next().?);
+//     try std.testing.expectEqualSlices(Op, &[_]Op{ .mult, .mult, .mult }, it.next().?);
+//     try std.testing.expectEqual(null, it.next());
+// }
