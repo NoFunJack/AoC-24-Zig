@@ -62,15 +62,15 @@ fn scoreMap(mapStr: []const u8) !u64 {
 
     for (map.items, 0..) |h, i| {
         if (h == '9') {
-            var reachables = try gpa.alloc(bool, map.items.len);
+            var reachables = try gpa.alloc(u64, map.items.len);
             defer gpa.free(reachables);
             for (reachables, 0..) |_, ri| {
-                reachables[ri] = false;
+                reachables[ri] = 0;
             }
             markReachable(map.items, &reachables, i, width);
 
             for (reachables, 0..) |r, ri| {
-                if (r) score[ri] += 1;
+                score[ri] += r;
             }
         }
     }
@@ -84,9 +84,12 @@ fn scoreMap(mapStr: []const u8) !u64 {
     return totalScore;
 }
 
-fn markReachable(map: []const u8, reachable: *[]bool, start: usize, width: usize) void {
+fn markReachable(map: []const u8, reachable: *[]u64, start: usize, width: usize) void {
     // hook
-    if (reachable.*[start]) return else reachable.*[start] = true;
+    if (reachable.*[start] == '0') {
+        return;
+    }
+    reachable.*[start] += 1;
 
     // >
     var next = start + 1;
@@ -125,8 +128,8 @@ const exampleMap =
     \\10456732
 ;
 
-test "part1 example" {
-    try std.testing.expectEqual(36, scoreMap(exampleMap));
+test "part2 example" {
+    try std.testing.expectEqual(81, scoreMap(exampleMap));
 }
 
 test "split example" {
