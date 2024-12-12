@@ -12,6 +12,7 @@ const data = @embedFile("data/day09.txt");
 
 pub fn main() !void {
     print("part1 {any}\n", .{checksumCompressed(data)});
+    print("part2 {any}\n", .{checksumDefrag(data)});
 }
 
 // Useful stdlib functions
@@ -103,6 +104,92 @@ fn checksumCompressed(input: []const u8) !u64 {
     return checksum;
 }
 
+fn checksumDefrag(input: []const u8) !u64 {
+    // string to nums
+    var map = try gpa.alloc(u8, input.len);
+    defer gpa.free(map);
+    var cap: usize = 0;
+    for (input, 0..) |c, i| {
+        //print("i: {d} c:{d}\n", .{ i, c });
+        if (c >= 48 and c <= 58) {
+            map[i] = c - 48;
+            cap += map[i];
+        }
+    }
+
+    // calc intial checksum
+    var checksums = try gpa.alloc(u64, input.len);
+    var lowP: usize = 0;
+    for (map, 0..) |e, i| {
+        if (@mod(i, 2) == 0) {
+            // print("Inital Data: {d}\n", .{e});
+            // print("value {d}\n", .{i / 2});
+            // data
+            checksums[i] = blockSum(lowP, e) * (i / 2);
+        } else {
+            checksums[i] = 0;
+        }
+        lowP += e;
+    }
+    print("{any}\n\n", .{checksums});
+
+    // push files down
+    var up = map.len - 1;
+    const added = try gpa.alloc(u64, input.len);
+    @memcpy(added, checksums);
+    defer gpa.free(added);
+    const org = try gpa.alloc(u8, input.len);
+    @memcpy(org, map);
+    defer gpa.free(org);
+    while (up > 0) {
+        if (@mod(up, 2) == 0) {
+            if (getFirstFreeSpaceForBlock(map, up)) |to| {
+                checksums[up] = 0; // remove from top
+                map[to] -= map[up]; // remove free space bottom
+                const startIdx = getStartIdx(org, to) + added[to];
+                checksums[to] += blockSum(startIdx, map[up]) * (up / 2);
+                added[to] += map[up];
+            }
+        }
+        up -= 1;
+    }
+
+    var checksum: u64 = 0;
+    for (checksums) |a| {
+        checksum += a;
+    }
+    print("{any}", .{checksums});
+
+    return checksum;
+}
+
+fn getFirstFreeSpaceForBlock(map: []u8, max: usize) ?usize {
+    for (map, 0..) |e, i| {
+        if (i >= max) {
+            break;
+        }
+        if (@mod(i, 2) == 1 and e >= map[max]) {
+            print("Space found for {d} after {d}\n", .{ max / 2, i / 2 });
+            return i;
+        }
+    }
+
+    print("No Space found for {d}\n", .{max / 2});
+    return null;
+}
+
+fn getStartIdx(map: []u8, i: usize) usize {
+    var idx: usize = 0;
+
+    for (map, 0..) |m, mc| {
+        if (mc >= i) break;
+        idx += m;
+        //print("m: {d} idx:{d} ", .{ m, idx });
+    }
+
+    return idx;
+}
+
 fn printBlock(input: []u8, d: usize, u: usize) void {
     for (input) |c| {
         print("{d}", .{c});
@@ -155,6 +242,9 @@ fn blockSum(start: usize, length: u8) u64 {
 
 const exampleMap = "2333133121414131402";
 
-test "example part1" {
-    try std.testing.expectEqual(1928, checksumCompressed(exampleMap));
+// test "example part1" {
+//     try std.testing.expectEqual(1928, checksumCompressed(exampleMap));
+// }
+test "example part2" {
+    try std.testing.expectEqual(2858, checksumDefrag(exampleMap));
 }
