@@ -12,6 +12,7 @@ const data = @embedFile("data/day11.txt");
 
 pub fn main() !void {
     print("part1: {any}\n", .{countStones(data, 25)});
+    print("part2: {any}\n", .{countStones(data, 75)});
 }
 
 // Useful stdlib functions
