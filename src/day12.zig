@@ -44,8 +44,17 @@ const desc = std.sort.desc;
 // Generated from template/template.zig.
 // Run `zig build generate` to update.
 // Only unmodified days will be updated.
-
 fn calcCost(mapStr: []const u8) !u64 {
+    const plotmap = try buildPlotMap(mapStr);
+    defer plotmap.deinit();
+    var sum: u64 = 0;
+    for (plotmap.items) |p| {
+        sum += p.getCost();
+    }
+    return sum;
+}
+
+fn buildPlotMap(mapStr: []const u8) !List(PlotCluster) {
     var mapList = List(u8).init(gpa);
     var lineIt = splitSca(u8, mapStr, '\n');
     const width = lineIt.peek().?.len;
@@ -55,20 +64,17 @@ fn calcCost(mapStr: []const u8) !u64 {
     const map = mapList.items;
 
     var pcl = List(PlotCluster).init(gpa);
-    defer pcl.deinit();
-    var sum: u64 = 0;
     plotLoop: for (map, 0..) |p, i| {
         for (pcl.items) |pc| {
             if (pc.isInPlot(p, i)) continue :plotLoop;
         }
-        print("---New Plot {c} at {d}\n", .{ p, i });
+        //print("---New Plot {c} at {d}\n", .{ p, i });
 
         const plot = try PlotCluster.init(width, p, i, &map);
         try pcl.append(plot);
-        sum += plot.getCost();
     }
 
-    return sum;
+    return pcl;
 }
 
 const PlotCluster = struct {
