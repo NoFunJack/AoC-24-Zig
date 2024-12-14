@@ -10,7 +10,9 @@ const gpa = util.gpa;
 
 const data = @embedFile("data/day12.txt");
 
-pub fn main() !void {}
+pub fn main() !void {
+    print("par1: {any}\n", .{calcCost(data)});
+}
 
 // Useful stdlib functions
 const tokenizeAny = std.mem.tokenizeAny;
@@ -88,7 +90,7 @@ const PlotCluster = struct {
 
     fn build(self: *PlotCluster, start: usize) void {
         self.buildInternal(start);
-        self.printMe();
+        //self.printMe();
     }
 
     fn buildInternal(self: *PlotCluster, pos: usize) void {
@@ -107,6 +109,22 @@ const PlotCluster = struct {
         if (next < self.map.len and pp.*.hasD and self.map.*[next] == self.letter) {
             pp.*.hasD = false;
             self.plots[next].hasU = false;
+            self.buildInternal(next);
+        }
+        // <
+        if (pos > 1 and @mod(pos, self.width) != 0 and
+            pp.*.hasL and self.map.*[pos - 1] == self.letter)
+        {
+            next = pos - 1;
+            pp.*.hasL = false;
+            self.plots[next].hasR = false;
+            self.buildInternal(next);
+        }
+        // ^
+        if (pp.*.hasU and pos > self.width and self.map.*[pos - self.width] == self.letter) {
+            next = pos - self.width;
+            pp.*.hasU = false;
+            self.plots[next].hasD = false;
             self.buildInternal(next);
         }
     }
@@ -177,4 +195,20 @@ const xoMap =
 ;
 test "part1 xo" {
     try std.testing.expectEqual(772, calcCost(xoMap));
+}
+
+const bigMap =
+    \\RRRRIICCFF
+    \\RRRRIICCCF
+    \\VVRRRCCFFF
+    \\VVRCCCJFFF
+    \\VVVVCJJCFE
+    \\VVIVCCJJEE
+    \\VVIIICJJEE
+    \\MIIIIIJJEE
+    \\MIIISIJEEE
+    \\MMMISSJEEE
+;
+test "part1 big" {
+    try std.testing.expectEqual(1930, calcCost(bigMap));
 }
