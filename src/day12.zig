@@ -54,6 +54,16 @@ fn calcCost(mapStr: []const u8) !u64 {
     return sum;
 }
 
+fn calcCostBulk(mapStr: []const u8) !u64 {
+    const plotmap = try buildPlotMap(mapStr);
+    defer plotmap.deinit();
+    var sum: u64 = 0;
+    for (plotmap.items) |p| {
+        sum += p.getCost();
+    }
+    return sum;
+}
+
 fn buildPlotMap(mapStr: []const u8) !List(PlotCluster) {
     var mapList = List(u8).init(gpa);
     var lineIt = splitSca(u8, mapStr, '\n');
@@ -190,6 +200,9 @@ const smallMap =
 
 test "part1 small" {
     try std.testing.expectEqual(140, calcCost(smallMap));
+}
+test "part2 small" {
+    try std.testing.expectEqual(80, calcCost(smallMap));
 }
 
 const xoMap =
