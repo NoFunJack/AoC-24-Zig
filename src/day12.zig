@@ -167,3 +167,14 @@ const smallMap =
 test "part1 small" {
     try std.testing.expectEqual(140, calcCost(smallMap));
 }
+
+const xoMap =
+    \\OOOOO
+    \\OXOXO
+    \\OOOOO
+    \\OXOXO
+    \\OOOOO
+;
+test "part1 xo" {
+    try std.testing.expectEqual(772, calcCost(xoMap));
+}
