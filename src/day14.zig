@@ -11,7 +11,13 @@ const gpa = util.gpa;
 const data = @embedFile("data/day14.txt");
 
 pub fn main() !void {
-    print("part1: {any}\n", .{safetyFactor(data, 101, 103)});
+    print("part1: {any}\n", .{safetyFactor(data, 101, 103, 100)});
+    var s: u32 = 0;
+    while (true) {
+        print("Seconds Passed: {d}\n", .{s});
+        _ = try safetyFactor(data, 101, 103, s);
+        s += 1;
+    }
 }
 
 // Useful stdlib functions
@@ -45,17 +51,17 @@ const desc = std.sort.desc;
 // Run `zig build generate` to update.
 // Only unmodified days will be updated.
 
-fn safetyFactor(posl: []const u8, wide: i64, high: i64) !u64 {
+fn safetyFactor(posl: []const u8, wide: i64, high: i64, seconds: u32) !u64 {
     const len: u64 = @intCast(wide * high);
     const botMap = try gpa.alloc(u64, len);
-    const seconds: u8 = 100;
+    defer gpa.free(botMap);
     for (botMap, 0..) |_, i| {
         botMap[i] = 0;
     }
     var lineIt = splitSca(u8, posl, '\n');
     while (lineIt.next()) |line| {
         if (line.len < 2) continue;
-        print("{s}\n", .{line});
+        //print("{s}\n", .{line});
         var wordIt = splitSca(u8, line, ' ');
         var posStr = wordIt.next().?;
         const start_x = try parseInt(i64, posStr[2..indexOf(u8, posStr, ',').?], 10);
@@ -73,14 +79,14 @@ fn safetyFactor(posl: []const u8, wide: i64, high: i64) !u64 {
         //print("-> end[{d},{d}](pos:{d})\n", .{ end_x, end_y, pos });
         botMap[pos] += 1;
     }
-    printMap(&botMap, wide);
 
     var secNums = std.mem.zeroes([4]u64);
 
     const uwide: usize = @intCast(wide);
     const x_mid = uwide / 2;
     const y_mid = @divFloor(high, 2);
-    print("D[{d}|{d}]\n", .{ x_mid, y_mid });
+    var symFactor: u64 = 0;
+    //print("D[{d}|{d}]\n", .{ x_mid, y_mid });
     for (botMap, 0..) |c, i| {
         if (c == 0) {
             continue;
@@ -88,29 +94,41 @@ fn safetyFactor(posl: []const u8, wide: i64, high: i64) !u64 {
         const y = @divFloor(i, uwide);
         const x = i - y * uwide;
         if (x < x_mid) {
+            if (x > 0 and botMap[y * uwide + (uwide - x)] > 0) symFactor += 1;
             if (y < y_mid) {
-                print("sec0: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
+                //print("sec0: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
                 secNums[0] += c;
             }
             if (y > y_mid) {
-                print("sec2: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
+                //print("sec2: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
                 secNums[2] += c;
             }
         }
         if (x > x_mid) {
             if (y < y_mid) {
-                print("sec1: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
+                //print("sec1: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
                 secNums[1] += c;
             }
             if (y > y_mid) {
-                print("sec3: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
+                //print("sec3: [{d}]({d},{d})+{d}\n", .{ i, x, y, c });
                 secNums[3] += c;
             }
         }
     }
 
+    // std.time.sleep(100000000);
+
+    // if (@mod(seconds, 100) == 0) {
+    if (symFactor > 40) {
+        printMap(&botMap, wide);
+        const reader = std.io.getStdIn().reader();
+        const buf = try gpa.alloc(u8, 100);
+        defer gpa.free(buf);
+        _ = try reader.readUntilDelimiterOrEof(buf, '\n');
+    }
+
     const sec = secNums[0] * secNums[1] * secNums[2] * secNums[3];
-    print("sec:{any}->{d}\n", .{ secNums, sec });
+    //print("sec:{any}->{d}\n", .{ secNums, sec });
 
     return sec;
 }
@@ -145,5 +163,5 @@ const example =
 ;
 
 test "part1 example" {
-    try std.testing.expectEqual(12, safetyFactor(example, 11, 7));
+    try std.testing.expectEqual(12, safetyFactor(example, 11, 7, 100));
 }
