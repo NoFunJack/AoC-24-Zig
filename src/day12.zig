@@ -12,6 +12,7 @@ const data = @embedFile("data/day12.txt");
 
 pub fn main() !void {
     print("par1: {any}\n", .{calcCost(data)});
+    print("par2: {any}\n", .{calcCostBulk(data)});
 }
 
 // Useful stdlib functions
@@ -59,7 +60,7 @@ fn calcCostBulk(mapStr: []const u8) !u64 {
     defer plotmap.deinit();
     var sum: u64 = 0;
     for (plotmap.items) |p| {
-        sum += p.getCost();
+        sum += try p.getCostBulk();
     }
     return sum;
 }
@@ -174,6 +175,63 @@ const PlotCluster = struct {
         print("Result Plot[{c}] {d} * {d} = {d}\n", .{ self.letter, area, fence, re });
         return re;
     }
+    pub fn getCostBulk(self: *const PlotCluster) !u64 {
+        var area: u64 = 0;
+        for (self.plots) |p| {
+            if (p.exists) {
+                area += 1;
+            }
+        }
+        const sides = try self.countSides();
+        const re = area * sides;
+        print("Result Plot[{c}] {d} * {d} = {d}\n", .{ self.letter, area, sides, re });
+        return re;
+    }
+
+    fn countSides(self: *const PlotCluster) !u64 {
+        var sides: u64 = 0;
+
+        while (self.findFirstWithWall()) |start| {
+            sides += 1;
+            var pos = start;
+            if (self.plots[pos].hasU) {
+                while (pos < self.plots.len and self.plots[pos].exists and self.plots[pos].hasU) {
+                    //print("[^{d}]", .{pos});
+                    self.plots[pos].hasU = false; //remove scanned wall
+                    pos += 1;
+                }
+            } else if (self.plots[pos].hasD) {
+                while (pos < self.plots.len and self.plots[pos].exists and self.plots[pos].hasD) {
+                    //print("[v{d}]", .{pos});
+                    self.plots[pos].hasD = false; //remove scanned wall
+                    pos += 1;
+                }
+            } else if (self.plots[pos].hasL) {
+                while (pos < self.plots.len and self.plots[pos].exists and self.plots[pos].hasL) {
+                    //print("[<{d}]", .{pos});
+                    self.plots[pos].hasL = false; //remove scanned wall
+                    pos += self.width;
+                }
+            } else if (self.plots[pos].hasR) {
+                while (pos < self.plots.len and self.plots[pos].exists and self.plots[pos].hasR) {
+                    //print("[>{d}]", .{pos});
+                    self.plots[pos].hasR = false; //remove scanned wall
+                    pos += self.width;
+                }
+            }
+            //print("\n", .{});
+        }
+
+        return sides;
+    }
+
+    // result sould be top-and left most
+    fn findFirstWithWall(self: *const PlotCluster) ?usize {
+        for (self.plots, 0..) |p, i| {
+            if (p.exists and (p.hasU or p.hasD or p.hasL or p.hasR)) return i;
+        }
+        return null;
+    }
 };
 
 const Plot = struct {
@@ -202,7 +260,7 @@ test "part1 small" {
     try std.testing.expectEqual(140, calcCost(smallMap));
 }
 test "part2 small" {
-    try std.testing.expectEqual(80, calcCost(smallMap));
+    try std.testing.expectEqual(80, calcCostBulk(smallMap));
 }
 
 const xoMap =
@@ -214,6 +272,9 @@ const xoMap =
 ;
 test "part1 xo" {
     try std.testing.expectEqual(772, calcCost(xoMap));
+}
+test "part2 xo" {
+    try std.testing.expectEqual(436, calcCostBulk(xoMap));
 }
 
 const bigMap =
@@ -230,4 +291,7 @@ const bigMap =
 ;
 test "part1 big" {
     try std.testing.expectEqual(1930, calcCost(bigMap));
+}
+test "part2 big" {
+    try std.testing.expectEqual(1206, calcCostBulk(bigMap));
 }
