@@ -52,10 +52,19 @@ fn boxHash(instr: []const u8) !u64 {
     var map = List(u8).init(gpa);
     defer map.deinit();
     var lineIt = splitSca(u8, blockIter.next().?, '\n');
-    const width = lineIt.peek().?.len;
+    const width = lineIt.peek().?.len * 2;
+    print("WIDTH: {d}", .{width});
     {
         while (lineIt.next()) |line| {
-            try map.appendSlice(line);
+            for (line) |c| {
+                switch (c) {
+                    '#' => try map.appendSlice("##"),
+                    'O' => try map.appendSlice("[]"),
+                    '@' => try map.appendSlice("@."),
+                    '.' => try map.appendSlice(".."),
+                    else => {},
+                }
+            }
         }
     }
     var pos = indexOf(u8, map.items, '@').?;
@@ -69,12 +78,13 @@ fn boxHash(instr: []const u8) !u64 {
         for (moves) |move| {
             print("move: {c}\n", .{move});
             switch (move) {
-                '<' => pos = changeMap(&map.items, width, pos, -1),
-                '^' => pos = changeMap(&map.items, width, pos, -iwidth),
-                '>' => pos = changeMap(&map.items, width, pos, 1),
-                'v' => pos = changeMap(&map.items, width, pos, iwidth),
+                '<' => pos = try changeMap(&map.items, width, pos, -1),
+                '^' => pos = try changeMap(&map.items, width, pos, -iwidth),
+                '>' => pos = try changeMap(&map.items, width, pos, 1),
+                'v' => pos = try changeMap(&map.items, width, pos, iwidth),
                 else => {},
             }
+            // printMap(map.items, width, pos);
         }
     }
 
@@ -82,31 +92,80 @@ fn boxHash(instr: []const u8) !u64 {
     return calcHash(&map.items, width);
 }
 
-fn changeMap(map: *[]u8, width: usize, pos: usize, dir: i8) usize {
-    _ = width;
+fn changeMap(map: *[]u8, width: usize, pos: usize, dir: i8) !usize {
     const next = pos +% @as(usize, @bitCast(@as(isize, dir)));
     switch (map.*[next]) {
         '#' => return pos,
         '.' => return next,
-        'O' => {
+        '[', ']' => {
             var s = next;
-            while (map.*[s] != '#') {
-                s = s +% @as(usize, @bitCast(@as(isize, dir)));
-                if (map.*[s] == '.') {
-                    std.mem.swap(u8, &map.*[s], &map.*[next]);
+            if (dir == -1 or dir == 1) {
+                var stack = List(u8).init(gpa);
+                defer stack.deinit();
+                while (map.*[s] != '#') {
+                    try stack.append(map.*[s]);
+                    s = s +% @as(usize, @bitCast(@as(isize, dir)));
+                    if (map.*[s] == '.') {
+                        map.*[next] = '.';
+                        var p = next;
+                        for (stack.items) |n| {
+                            p = p +% @as(usize, @bitCast(@as(isize, dir)));
+                            map.*[p] = n;
+                        }
+                        return next;
+                    }
+                }
+                return pos;
+            } else {
+                if (trianglePush(map, next, dir, width, false)) {
+                    _ = trianglePush(map, next, dir, width, true);
                     return next;
+                } else {
+                    return pos;
                 }
             }
-            return pos;
         },
         else => unreachable,
+    }
+}
+
+fn trianglePush(map: *[]u8, pos: usize, dir: i8, width: usize, dopush: bool) bool {
+    // print("TESTING:({any}) {d}\n", .{ dopush, pos });
+    // rec hook
+    if (map.*[pos] == '.') {
+        // print("hook\n", .{});
+        return true;
+    }
+    if (map.*[pos] == '#') return false;
+
+    var l = pos;
+    if (map.*[pos] == ']') {
+        l = pos - 1;
+    }
+    // print("l: {d}\n", .{l});
+    //printMap(map.*, width, pos);
+    const ln = l +% @as(usize, @bitCast(@as(isize, dir)));
+    if (trianglePush(map, ln, dir, width, dopush) and trianglePush(map, ln + 1, dir, width, dopush)) {
+        // print("crating box {d}->{d}\n", .{ l, ln });
+        // pushable
+        if (dopush) {
+            map.*[ln] = '[';
+            map.*[ln + 1] = ']';
+            map.*[l] = '.';
+            map.*[l + 1] = '.';
+        }
+        return true;
+    } else if (map.*[ln] == '#' and map.*[ln + 1] == '#') {
+        return false;
+    } else {
+        return false;
     }
 }
 
 fn calcHash(map: *[]u8, width: usize) u64 {
     var sum: u64 = 0;
     for (map.*, 0..) |m, i| {
-        if (m == 'O') {
+        if (m == '[') {
             const l = @rem(i, width);
             const t = @divTrunc(i, width);
             sum += t * 100 + l;
@@ -142,8 +201,22 @@ const example =
     \\<^^>>>vv<v>>v<<
 ;
 
-test "part1 example small" {
-    try std.testing.expectEqual(2028, boxHash(example));
+// test "part1 example small" {
+// try std.testing.expectEqual(9021, boxHash(example));
+// }
+test "situation" {
+    const sit =
+        \\#######
+        \\#...#.#
+        \\#.....#
+        \\#..OO@#
+        \\#..O..#
+        \\#.....#
+        \\#######
+        \\
+        \\<vv<<^^<<^^
+    ;
+    try std.testing.expectEqual(0, boxHash(sit));
 }
 const exampleBig =
     \\##########
@@ -170,5 +243,5 @@ const exampleBig =
 ;
 
 test "part1 example big" {
-    try std.testing.expectEqual(10092, boxHash(exampleBig));
+    try std.testing.expectEqual(9021, boxHash(exampleBig));
 }
