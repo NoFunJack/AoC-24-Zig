@@ -45,7 +45,7 @@ const desc = std.sort.desc;
 // Run `zig build generate` to update.
 // Only unmodified days will be updated.
 
-fn findBestPath(map: []const u8) !u64 {
+fn findBestPath(map: []const u8) ![2]u64 {
     const width = indexOf(u8, map, '\n').? + 1;
     const root = Node{
         .pos = indexOf(u8, map, 'S').?,
@@ -56,14 +56,25 @@ fn findBestPath(map: []const u8) !u64 {
 
     var nodes = try NodeList.init(root);
 
+    var bestPathScore: u64 = 100000;
+    var bestPaths = List(Node).init(gpa);
+
     while (try nodes.popSmallest()) |n| {
+        if (n.cost > bestPathScore) {
+            break;
+        }
         // print("\n", .{});
         // if (n.cost > 3000) unreachable;
-        // print("bestNode pos: {d} dir:{any} cost:{d}\n", .{ n.pos, n.dir, n.cost });
+        // print("DEBUG: {d}\n", .{nodes.nodes.items.len});
+        print("bestNode pos: {d} dir:{any} cost:{d}\n", .{ n.pos, n.dir, n.cost });
         // hook
         if (map[n.pos] == 'E') {
-            printPos(n, map);
-            return n.cost;
+            if (n.cost <= bestPathScore) {
+                printPos(n, map);
+                bestPathScore = n.cost;
+                try bestPaths.append(n);
+                continue;
+            }
         }
 
         // move
@@ -101,9 +112,11 @@ fn findBestPath(map: []const u8) !u64 {
             .hist = hist,
         };
         if (map[left.nextPos(width)] == '.' or map[left.nextPos(width)] == 'E') try nodes.appendIfNew(left);
+
+        n.hist.deinit();
     }
 
-    unreachable; // no path found
+    return .{ bestPathScore, try countUniqueHist(bestPaths) + 1 };
 }
 
 fn printPos(n: Node, map: []const u8) void {
@@ -116,6 +129,24 @@ fn printPos(n: Node, map: []const u8) void {
             print("{c}", .{m});
         }
     }
+}
+
+fn countUniqueHist(nodes: List(Node)) !u64 {
+    var uniqes = List(usize).init(gpa);
+    defer uniqes.deinit();
+
+    for (nodes.items) |end| {
+        nodes: for (end.hist.items) |n| {
+            for (uniqes.items) |u| {
+                if (u == n.pos) {
+                    continue :nodes;
+                }
+            }
+            try uniqes.append(n.pos);
+        }
+    }
+
+    return uniqes.items.len;
 }
 
 const NodeList = struct {
@@ -146,7 +177,7 @@ const NodeList = struct {
 
     pub fn appendIfNew(self: *NodeList, n: Node) !void {
         for (self.known.items) |v| {
-            if (n.pos == v.pos and n.dir == v.dir) {
+            if (n.pos == v.pos and n.dir == v.dir and n.cost > v.cost) {
                 n.hist.deinit(); // node will be gone
                 return;
             }
@@ -232,7 +263,9 @@ const firstEx =
 ;
 
 test "part1 first" {
-    try std.testing.expectEqual(7036, findBestPath(firstEx));
+    const result = try findBestPath(firstEx);
+    try std.testing.expectEqual(7036, result[0]);
+    try std.testing.expectEqual(45, result[1]);
 }
 
 const secondEx =
@@ -256,5 +289,7 @@ const secondEx =
 ;
 
 test "part1 second" {
-    try std.testing.expectEqual(11048, findBestPath(secondEx));
+    const result = try findBestPath(secondEx);
+    try std.testing.expectEqual(11048, result[0]);
+    try std.testing.expectEqual(64, result[1]);
 }
