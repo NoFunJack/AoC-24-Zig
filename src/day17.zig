@@ -15,6 +15,7 @@ pub fn main() !void {
     var input = [_]u3{ 2, 4, 1, 5, 7, 5, 1, 6, 0, 3, 4, 3, 5, 5, 3, 0 };
     const out = try c.compute(&input);
     print("part1: {any}\n", .{out.items});
+    print("part2: {any}", .{eigenProgramm(&input)});
 }
 
 // Useful stdlib functions
@@ -62,18 +63,19 @@ const Comp = struct {
         };
     }
 
-    pub fn compute(self: *Comp, programm: []u3) !List(u3) {
+    pub fn compute(self: *Comp, programm: []const u3) !List(u3) {
         var outl = List(u3).init(gpa);
 
+        print("COMP: {any}\n", .{self});
         while (self.ptr + 1 < programm.len) {
             const instrId = programm[self.ptr];
             const opId = programm[self.ptr + 1];
-            print("COMP: {any} OUT: {any}\n", .{ self, outl.items });
-            print("IntrId: {d}, opId: {d}\n", .{ instrId, opId });
+            // print("COMP: {any} OUT: {any}\n", .{ self, outl.items });
+            // print("IntrId: {d}, opId: {d}\n", .{ instrId, opId });
             self.ptr += 2;
 
             const combiVal = self.readComboVal(opId);
-            print("-> val: {d}\n", .{combiVal});
+            // print("-> val: {d}\n", .{combiVal});
             try self.do(instrId, &outl, combiVal, opId);
         }
 
@@ -109,7 +111,7 @@ const Comp = struct {
     }
     fn cdv(self: *Comp, val: u64) void {
         const re = @divTrunc(self.regA, exp2(val));
-        print("DEBUG: {d}/{d}={d}\n", .{ self.regA, val, re });
+        // print("DEBUG: {d}/{d}={d}\n", .{ self.regA, val, re });
         self.regC = re;
     }
 
@@ -122,29 +124,56 @@ const Comp = struct {
     fn jnz(self: *Comp, val: u64) void {
         if (self.regA != 0) {
             self.ptr = val;
-            print("Pointer to: {d}\n", .{self.ptr});
+            // print("Pointer to: {d}\n", .{self.ptr});
         }
     }
     fn xbc(self: *Comp) void {
         const result = self.regB ^ self.regC;
-        print("{b}\n{b}\n{b}", .{ self.regB, self.regB, result });
+        // print("{b}\n{b}\n{b}", .{ self.regB, self.regB, result });
         self.regB = result;
     }
     fn outFn(out: *List(u3), val: u64) !void {
         const mod: u3 = @intCast(@mod(val, 8));
         try out.append(mod);
     }
-
-    fn exp2(e: u64) u64 {
-        var re: u64 = 1;
-        var c = e;
-        while (c > 0) {
-            re *= 2;
-            c -= 1;
-        }
-        return re;
-    }
 };
+
+fn exp2(e: u64) u64 {
+    var re: u64 = 1;
+    var c = e;
+    while (c > 0) {
+        re *= 2;
+        c -= 1;
+    }
+    return re;
+}
+fn eigenProgramm(prog: []const u3) !u64 {
+    var a: u64 = exp2(15 * 3) + exp2(15 * 3 - 1) + exp2(15 * 3 - 2);
+    print("{b}\n", .{a});
+    while (true) {
+        var c = Comp.init(a, 0, 0);
+        const out = try c.compute(prog);
+        print("{d}\n", .{a});
+        if (listEqual(prog, out.items)) {
+            return a;
+        }
+        a += 1;
+    }
+    unreachable;
+}
+
+fn listEqual(a: []const u3, b: []const u3) bool {
+    print("compare: \n{any}\n{any}\n", .{ a, b });
+    if (a.len == b.len) {
+        for (a, b) |x, y| {
+            if (x != y) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
 
 test "part1 examples mod c->b" {
     var c = Comp.init(0, 0, 9);
@@ -186,4 +215,16 @@ test "part1 example" {
     const out = try c.compute(&input);
     const expected = [_]u3{ 4, 6, 3, 5, 6, 3, 5, 2, 1, 0 };
     try std.testing.expectEqualSlices(u3, &expected, out.items);
+}
+
+test "part2 example" {
+    const input = [_]u3{ 0, 3, 5, 4, 3, 0 };
+    try std.testing.expectEqual(117440, eigenProgramm(&input));
+}
+
+test "part2 debug" {
+    var c = Comp.init(117440, 0, 0);
+    const input = [_]u3{ 0, 3, 5, 4, 3, 0 };
+    const out = try c.compute(&input);
+    try std.testing.expectEqualSlices(u3, &input, out.items);
 }
