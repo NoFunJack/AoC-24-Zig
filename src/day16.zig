@@ -49,7 +49,7 @@ fn findBestPath(map: []const u8) ![2]u64 {
     const width = indexOf(u8, map, '\n').? + 1;
     const root = Node{
         .pos = indexOf(u8, map, 'S').?,
-        .dir = Dir.l,
+        .dir = Dir.r,
         .cost = 0,
         .hist = List(Node).init(gpa),
     };
@@ -78,42 +78,38 @@ fn findBestPath(map: []const u8) ![2]u64 {
         }
 
         // move
-        const next = n.nextPos(width);
-        if (map[next] == '.' or map[next] == 'E') {
-            // print("can move to {d}\n", .{next});
+        var branchNode = n;
+        while (true) {
+            var isBranch = false;
 
-            var hist = try n.hist.clone();
-            try hist.append(n);
-            try nodes.appendIfNew(Node{
-                .pos = next,
-                .dir = n.dir,
-                .cost = n.cost + 1,
-                .hist = hist,
-            });
+            if (branchNode.rightSpaceFree(map, width)) {
+                try nodes.appendIfNew(try branchNode.nextRight());
+                isBranch = true;
+            }
+            if (branchNode.leftSpaceFree(map, width)) {
+                try nodes.appendIfNew(try branchNode.nextLeft());
+                isBranch = true;
+            }
+
+            if (isBranch) {
+                const nextNode = try branchNode.nextNode(width);
+                if (map[nextNode.pos] == '.' or map[nextNode.pos] == 'E') {
+                    try nodes.appendIfNew(nextNode);
+                }
+                break;
+            } else {
+                if (branchNode.nextSpaceFree(map, width)) {
+                    branchNode = try branchNode.nextNode(width);
+                } else {
+                    break;
+                }
+                if (map[branchNode.pos] == 'E') {
+                    try nodes.appendIfNew(branchNode);
+                }
+            }
         }
 
-        // turn right
-        var hist = try n.hist.clone();
-        try hist.append(n);
-        const right = Node{
-            .pos = n.pos,
-            .dir = n.dir.right(),
-            .cost = n.cost + 1000,
-            .hist = hist,
-        };
-        if (map[right.nextPos(width)] == '.' or map[right.nextPos(width)] == 'E') try nodes.appendIfNew(right);
-        // turn left
-        hist = try n.hist.clone();
-        try hist.append(n);
-        const left = Node{
-            .pos = n.pos,
-            .dir = n.dir.left(),
-            .cost = n.cost + 1000,
-            .hist = hist,
-        };
-        if (map[left.nextPos(width)] == '.' or map[left.nextPos(width)] == 'E') try nodes.appendIfNew(left);
-
-        n.hist.deinit();
+        n.deinit();
     }
 
     return .{ bestPathScore, try countUniqueHist(bestPaths) + 1 };
@@ -178,7 +174,7 @@ const NodeList = struct {
     pub fn appendIfNew(self: *NodeList, n: Node) !void {
         for (self.known.items) |v| {
             if (n.pos == v.pos and n.dir == v.dir and n.cost > v.cost) {
-                n.hist.deinit(); // node will be gone
+                n.deinit(); // node will be gone
                 return;
             }
         }
@@ -194,13 +190,67 @@ const Node = struct {
     cost: u64,
     hist: List(Node),
 
+    pub fn deinit(self: *const Node) void {
+        self.hist.deinit();
+    }
+
     pub fn nextPos(self: *const Node, width: usize) usize {
-        return switch (self.dir) {
+        return nextPosDir(self, self.dir, width);
+    }
+
+    fn nextPosDir(self: *const Node, dir: Dir, width: usize) usize {
+        return switch (dir) {
             Dir.u => self.pos - width,
             Dir.r => self.pos + 1,
             Dir.d => self.pos + width,
             Dir.l => self.pos - 1,
         };
+    }
+
+    pub fn nextNode(self: Node, width: usize) !Node {
+        var hist = try self.hist.clone();
+        try hist.append(self);
+        return Node{
+            .pos = self.nextPos(width),
+            .dir = self.dir,
+            .cost = self.cost + 1,
+            .hist = hist,
+        };
+    }
+
+    pub fn nextRight(self: Node) !Node {
+        var hist = try self.hist.clone();
+        try hist.append(self);
+        return Node{
+            .pos = self.pos,
+            .dir = self.dir.right(),
+            .cost = self.cost + 1000,
+            .hist = hist,
+        };
+    }
+    pub fn nextLeft(self: Node) !Node {
+        var hist = try self.hist.clone();
+        try hist.append(self);
+        return Node{
+            .pos = self.pos,
+            .dir = self.dir.left(),
+            .cost = self.cost + 1000,
+            .hist = hist,
+        };
+    }
+
+    pub fn nextSpaceFree(self: *const Node, map: []const u8, width: usize) bool {
+        return map[self.nextPos(width)] == '.' or map[self.nextPos(width)] == 'E';
+    }
+    pub fn leftSpaceFree(self: *const Node, map: []const u8, width: usize) bool {
+        const d = self.dir.left();
+        const pos = self.nextPosDir(d, width);
+        return map[pos] == '.' or map[pos] == 'E';
+    }
+    pub fn rightSpaceFree(self: *const Node, map: []const u8, width: usize) bool {
+        const d = self.dir.right();
+        const pos = self.nextPosDir(d, width);
+        return map[pos] == '.' or map[pos] == 'E';
     }
 
     pub fn getHist(self: *const Node, pos: usize) ?Node {
