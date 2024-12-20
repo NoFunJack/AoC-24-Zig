@@ -15,7 +15,33 @@ pub fn main() !void {
     var input = [_]u3{ 2, 4, 1, 5, 7, 5, 1, 6, 0, 3, 4, 3, 5, 5, 3, 0 };
     const out = try c.compute(&input);
     print("part1: {any}\n", .{out.items});
-    print("part2: {any}", .{eigenProgramm(&input)});
+
+    var i: u64 = 0;
+    while (i < 0o1) {
+        if (@mod(i, 8) == 0) print("\n", .{});
+        var c2 = Comp.init(i, 0, 0);
+        const out2 = try c2.compute(&input);
+
+        print("{o}: {any}:", .{ i, out2.items });
+        i += 1;
+    }
+
+    var x: u64 = 0;
+    var y: u64 = 0;
+    while (x <= 64) {
+        y = 0;
+        while (y < 7) {
+            y += 1;
+            print("{o}/{o}={o}\n", .{ x, y, try std.math.divTrunc(u64, x, y) });
+        }
+        x += 1;
+    }
+
+    const solution = 0o1;
+    var c3 = Comp.init(solution, 0, 0);
+    const out3 = try c3.compute(&input);
+
+    print("\npart2:\nexp: {any}\nact: {any}\na:{d}", .{ input, out3.items, solution });
 }
 
 // Useful stdlib functions
@@ -66,7 +92,7 @@ const Comp = struct {
     pub fn compute(self: *Comp, programm: []const u3) !List(u3) {
         var outl = List(u3).init(gpa);
 
-        print("COMP: {any}\n", .{self});
+        // print("COMP: {any}\n", .{self});
         while (self.ptr + 1 < programm.len) {
             const instrId = programm[self.ptr];
             const opId = programm[self.ptr + 1];
@@ -148,31 +174,69 @@ fn exp2(e: u64) u64 {
     return re;
 }
 fn eigenProgramm(prog: []const u3) !u64 {
-    var a: u64 = exp2(15 * 3) + exp2(15 * 3 - 1) + exp2(15 * 3 - 2);
-    print("{b}\n", .{a});
+    var x: u64 = 1;
+    var a: u64 = 0;
     while (true) {
-        var c = Comp.init(a, 0, 0);
-        const out = try c.compute(prog);
-        print("{d}\n", .{a});
-        if (listEqual(prog, out.items)) {
+        print("\n", .{});
+
+        const matches = try eigenscore(a, prog, true);
+        const mLen = matches.len;
+        print("a: {b}[{d}] x: {b}[{d}] matches: {any}\n", .{ a, a, x, std.math.log2_int(u64, x), matches });
+        if (mLen == prog.len) {
             return a;
         }
-        a += 1;
+
+        // find bigest save bit
+        {
+            if (mLen >= 2) {
+                var shift: u64 = 0;
+                var y: u64 = undefined;
+                const abits = mLen * 3 + 1;
+                while (shift <= mLen * 3) {
+                    shift += 3;
+                    y = exp2(abits - shift);
+                    const a1 = y ^ a;
+                    const shiftMatches = try eigenscore(a1, prog, false);
+                    print("Find save: y:{b} a1: {b} sm: {any}\n", .{ y, a1, shiftMatches });
+                    if (shiftMatches.len != mLen) {
+                        break;
+                    }
+                    if (shiftMatches[mLen - 1] == matches[mLen - 1]) {
+                        if (shiftMatches[mLen - 2] != matches[mLen - 2]) {
+                            x = y;
+                            break;
+                        }
+                    }
+                }
+                //if (y > x * 2)
+            }
+        }
+
+        a += x;
+        if (a > 400) unreachable;
     }
     unreachable;
 }
 
-fn listEqual(a: []const u3, b: []const u3) bool {
-    print("compare: \n{any}\n{any}\n", .{ a, b });
-    if (a.len == b.len) {
-        for (a, b) |x, y| {
-            if (x != y) {
-                return false;
-            }
+fn eigenscore(a: u64, prog: []const u3, dbg: bool) ![]const u3 {
+    var c = Comp.init(a, 0, 0);
+    const out = try c.compute(prog);
+
+    return listEqualItems(prog, out.items, dbg);
+}
+
+fn listEqualItems(a: []const u3, b: []const u3, dbg: bool) []const u3 {
+    if (dbg) print("compare: \n{any}\n{any}\n", .{ a, b });
+    if (a.len < b.len) unreachable;
+    for (a, 0..) |_, i| {
+        if (i >= b.len) {
+            return a[0..i];
         }
-        return true;
+        if (a[i] != b[i]) {
+            return a[0..i];
+        }
     }
-    return false;
+    return a;
 }
 
 test "part1 examples mod c->b" {
